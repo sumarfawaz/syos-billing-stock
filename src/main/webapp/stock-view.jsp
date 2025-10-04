@@ -10,28 +10,63 @@
 <html>
 <head>
     <title>View All Stock Entries</title>
+    <!-- ✅ Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
-    <div>
-        <h1>View All Stock Entries</h1>
-        <a href="stock">Back to Stock Menu</a>
+<body class="bg-light">
 
-        <% if (request.getAttribute("error") != null) { %>
-            <p><%= request.getAttribute("error") %></p>
-        <% } %>
-        <% if (request.getAttribute("message") != null) { %>
-            <p><%= request.getAttribute("message") %></p>
-        <% } %>
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="text-primary">📦 All Stock Entries</h1>
+        <a href="javascript:history.back()" class="btn btn-secondary">⬅ Back to Stock Menu</a>
+    </div>
 
-        <h2>All Stock Entries</h2>
-        <table border="1">
-            <tr><th>Item Code</th><th>Quantity</th><th>Entry Date</th><th>Expiry Date</th></tr>
-            <% List<StockEntry> entries = (List<StockEntry>) request.getAttribute("stockEntries");
-            if (entries != null) {
-                for (StockEntry entry : entries) { %>
-            <tr><td><%= entry.getItemCode() %></td><td><%= entry.getQuantity() %></td><td><%= entry.getEntryDate() %></td><td><%= entry.getExpiryDate() %></td></tr>
-            <% } } %>
+    <% if (request.getAttribute("error") != null) { %>
+        <div class="alert alert-danger"><%= request.getAttribute("error") %></div>
+    <% } %>
+    <% if (request.getAttribute("message") != null) { %>
+        <div class="alert alert-success"><%= request.getAttribute("message") %></div>
+    <% } %>
+
+    <div class="card shadow-sm p-4">
+        <h4 class="mb-3">Stock List</h4>
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Stock Entry ID</th>
+                    <th>Item Code</th>
+                    <th>Quantity</th>
+                    <th>Entry Date</th>
+                    <th>Expiry Date</th>
+                </tr>
+            </thead>
+            <tbody>
+            <%
+                List<StockEntry> entries = (List<StockEntry>) request.getAttribute("stockEntries");
+                if (entries != null && !entries.isEmpty()) {
+                    for (StockEntry entry : entries) {
+            %>
+                <tr>
+                    <td><%= entry.getId() %></td>
+                    <td><%= entry.getItemCode() %></td>
+                    <td><%= entry.getQuantity() %></td>
+                    <td><%= entry.getEntryDate() %></td>
+                    <td><%= entry.getExpiryDate() %></td>
+                </tr>
+            <% 
+                    } 
+                } else { 
+            %>
+                <tr>
+                    <td colspan="5" class="text-center text-muted">No stock entries available.</td>
+                </tr>
+            <% } %>
+            </tbody>
         </table>
     </div>
+</div>
+
+<!-- ✅ Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

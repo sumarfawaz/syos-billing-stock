@@ -33,14 +33,14 @@ public class BillingService {
         this.billItemDAO = new BillItemDAO(conn);
 
         // Create StockService, passing the ShelfService along with ItemService
-        this.stockService = new StockService(conn, itemService, shelfService);  // Pass ShelfService here
+        this.stockService = new StockService(conn, itemService, shelfService); // Pass ShelfService here
 
         this.discountContext = new DiscountContext();
     }
 
     // Test constructor
     public BillingService(ItemService itemService, BillDAO billDAO, BillItemDAO billItemDAO,
-                          StockService stockService, DiscountContext discountContext) {
+            StockService stockService, DiscountContext discountContext) {
         this.itemService = itemService;
         this.billDAO = billDAO;
         this.billItemDAO = billItemDAO;
@@ -69,7 +69,8 @@ public class BillingService {
             int quantityNeeded = entry.getValue();
 
             Item item = itemService.getItemByCode(itemCode);
-            if (item == null) throw new SQLException("Item not found: " + itemCode);
+            if (item == null)
+                throw new SQLException("Item not found: " + itemCode);
 
             double itemTotal = item.getPrice() * quantityNeeded;
             total += itemTotal;
@@ -82,11 +83,11 @@ public class BillingService {
             billItems.add(new BillItem(item.getCode(), item.getName(), quantityNeeded, itemTotal));
 
             // **Reduce the shelf's stock after the bill is created**
-            reduceShelfStock(itemCode, quantityNeeded);  // Adjust shelf quantity after purchase
+            reduceShelfStock(itemCode, quantityNeeded); // Adjust shelf quantity after purchase
         }
 
         // Apply discount chain
-        Bill tempBill = new BasicBill(total, 0, cashTendered, 0, billItems, 0);  // temporary bill for context
+        Bill tempBill = new BasicBill(total, 0, cashTendered, 0, billItems, 0); // temporary bill for context
         DiscountResult discountResult = discountContext.applyDiscounts(tempBill, total);
 
         double discount = total - discountResult.getTotalAfterDiscount();
@@ -101,7 +102,9 @@ public class BillingService {
         billToSave.setSerialNumber(serialNumber);
 
         int billId = billDAO.saveBill(billToSave);
+        billToSave.setId(billId); // ✅ Assign generated key to the Bill object
         billItemDAO.saveBillItems(billId, billItems);
+        System.out.println("✅ Bill saved with ID: " + billId);
 
         System.out.println("✅ Discount applied: " + discountResult.getDiscountName());
         System.out.println("Total after discount: " + netTotal);
@@ -135,8 +138,9 @@ public class BillingService {
 
             // Update the shelf's current quantity
             shelf.setShelfCurrent(updatedQuantity);
-            stockService.getShelfService().updateShelf(shelf);  // Update in the database
-            System.out.println("✅ Shelf quantity updated: Current quantity is now " + updatedQuantity + "for " + itemCode);
+            stockService.getShelfService().updateShelf(shelf); // Update in the database
+            System.out.println(
+                    "✅ Shelf quantity updated: Current quantity is now " + updatedQuantity + "for " + itemCode);
 
             // Check if the shelf quantity is below a certain threshold (e.g., 10 units)
             if (updatedQuantity < 10) {

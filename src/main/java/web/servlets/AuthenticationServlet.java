@@ -35,32 +35,50 @@ public class AuthenticationServlet extends HttpServlet {
     }
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        HttpSession session = req.getSession(false);
+        User user = (session != null) ? (User) session.getAttribute("user") : null;
+
+        if (user != null) {
+            // ✅ Already logged in → go to role dashboard
+            redirectByRole(resp, req, user);
+            return;
+        }
+
         String path = req.getPathInfo();
         if (path == null) {
-            resp.sendRedirect("/index.jsp");
+            resp.sendRedirect(req.getContextPath() + "/index.jsp");
             return;
         }
 
         switch (path) {
             case "/login":
-                resp.sendRedirect("/login.jsp");
+                resp.sendRedirect(req.getContextPath() + "/login.jsp");
                 break;
             case "/register":
-                resp.sendRedirect("/register.jsp");
+                resp.sendRedirect(req.getContextPath() + "/register.jsp");
                 break;
             default:
-                resp.sendRedirect("/index.jsp");
+                resp.sendRedirect(req.getContextPath() + "/index.jsp");
         }
     }
 
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        HttpSession session = req.getSession(false);
+        User user = (session != null) ? (User) session.getAttribute("user") : null;
+
+        if (user != null) {
+            // ✅ Already logged in → go to role dashboard
+            redirectByRole(resp, req, user);
+            return;
+        }
+
         AsyncContext asyncContext = req.startAsync();
         RequestHandler handler = (r, s) -> {
             String path = r.getPathInfo();
             if (path == null) {
-                s.sendRedirect("/index.jsp?error=Invalid endpoint");
+                s.sendRedirect(req.getContextPath() + "/index.jsp?error=Invalid endpoint");
                 return;
             }
 
@@ -72,7 +90,7 @@ public class AuthenticationServlet extends HttpServlet {
                     handleLogin(r, s);
                     break;
                 default:
-                    s.sendRedirect("/index.jsp?error=Unknown endpoint");
+                    s.sendRedirect(req.getContextPath() + "/index.jsp?error=Unknown endpoint");
             }
         };
         AsyncRequestProcessor.getInstance().submitTask(new RequestTask(asyncContext, handler));
@@ -86,13 +104,21 @@ public class AuthenticationServlet extends HttpServlet {
         try {
             boolean success = authService.registerUser(username, role, password);
             if (success) {
-                resp.sendRedirect("/index.jsp?message=Registration successful");
+                // Auto-login after registration
+                User user = authService.login(username, password);
+                if (user != null) {
+                    req.getSession().setAttribute("user", user);
+                    redirectByRole(resp, req, user);
+                } else {
+                    resp.sendRedirect(
+                            req.getContextPath() + "/login.jsp?message=Registration successful, please log in");
+                }
             } else {
-                resp.sendRedirect("/index.jsp?error=Username already exists");
+                resp.sendRedirect(req.getContextPath() + "/register.jsp?error=Username already exists");
             }
         } catch (Exception e) {
             e.printStackTrace();
-            resp.sendRedirect("/index.jsp?error=Server error during registration");
+            resp.sendRedirect(req.getContextPath() + "/register.jsp?error=Server error during registration");
         }
     }
 
@@ -105,14 +131,30 @@ public class AuthenticationServlet extends HttpServlet {
             if (user != null) {
                 HttpSession session = req.getSession();
                 session.setAttribute("user", user);
-                resp.sendRedirect("/dashboard.jsp");
+                redirectByRole(resp, req, user);
             } else {
-                resp.sendRedirect("/index.jsp?error=Invalid username or password");
+                resp.sendRedirect(req.getContextPath() + "/login.jsp?error=Invalid username or password");
             }
         } catch (Exception e) {
             e.printStackTrace();
-            resp.sendRedirect("/index.jsp?error=Server error during login");
+            resp.sendRedirect(req.getContextPath() + "/login.jsp?error=Server error during login");
         }
     }
 
+    private void redirectByRole(HttpServletResponse resp, HttpServletRequest req, User user) throws IOException {
+        String base = req.getContextPath();
+        switch (user.getRole().toLowerCase()) {
+            case "admin":
+                resp.sendRedirect(base + "/admin-dashboard.jsp");
+                break;
+            case "employee":
+                resp.sendRedirect(base + "/employee-dashboard.jsp");
+                break;
+            case "customer":
+                resp.sendRedirect(base + "/customer/dashboard"); // ✅ servlet (loads data)
+                break;
+            default:
+                resp.sendRedirect(base + "/dashboard.jsp");
+        }
+    }
 }

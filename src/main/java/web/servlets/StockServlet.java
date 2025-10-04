@@ -71,6 +71,13 @@ public class StockServlet extends HttpServlet {
 
             String path = req.getPathInfo();
             if (path == null || path.equals("/")) {
+                try {
+                    // ✅ Fetch all stock entries for the default stock page
+                    List<StockEntry> entries = stockService.getAllStockEntries();
+                    req.setAttribute("stockEntries", entries);
+                } catch (Exception e) {
+                    req.setAttribute("error", "Error fetching stock entries: " + e.getMessage());
+                }
                 req.setAttribute("userRole", role);
                 req.getRequestDispatcher("/stock.jsp").forward(req, res);
                 return;

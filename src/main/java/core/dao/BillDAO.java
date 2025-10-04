@@ -26,7 +26,8 @@ public class BillDAO {
             stmt.executeUpdate();
 
             ResultSet rs = stmt.getGeneratedKeys();
-            if (rs.next()) return rs.getInt(1);
+            if (rs.next())
+                return rs.getInt(1);
         }
         return -1;
     }
@@ -35,7 +36,7 @@ public class BillDAO {
         List<Bill> bills = new ArrayList<>();
         String sql = "SELECT * FROM bills ORDER BY bill_date DESC";
         try (PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+                ResultSet rs = stmt.executeQuery()) {
 
             while (rs.next()) {
                 bills.add(mapResultSetToBill(rs));
@@ -70,15 +71,19 @@ public class BillDAO {
         return null;
     }
 
-
     private Bill mapResultSetToBill(ResultSet rs) throws SQLException {
-        return new BasicBill(
-                rs.getDouble("total"),
-                rs.getDouble("discount"),
-                rs.getDouble("cash_tendered"),
-                rs.getDouble("change_due"),
-                new ArrayList<>(), // You can load BillItems separately if needed
-                rs.getInt("serial_number")
-        );
-    }
+    BasicBill bill = new BasicBill(
+            rs.getDouble("total"),
+            rs.getDouble("discount"),
+            rs.getDouble("cash_tendered"),
+            rs.getDouble("change_due"),
+            new ArrayList<>(),
+            rs.getInt("serial_number")
+    );
+    bill.setId(rs.getInt("id")); // ✅ Now works
+    bill.setBillDate(rs.getTimestamp("bill_date")); // ✅ Now works
+    return bill;
+}
+
+
 }

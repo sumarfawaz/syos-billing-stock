@@ -50,42 +50,34 @@ public class ItemServlet extends HttpServlet {
     }
 
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
         AsyncContext asyncContext = request.startAsync();
         RequestHandler handler = (req, res) -> {
             HttpSession session = req.getSession();
             User user = (User) session.getAttribute("user");
             if (user == null) {
-                res.sendRedirect("/index.jsp?error=Please login first");
+                res.sendRedirect(req.getContextPath() + "/index.jsp?error=Please login first");
                 return;
             }
 
             String path = req.getPathInfo();
-            if (path == null || path.equals("/")) {
-                req.getRequestDispatcher("/item.jsp").forward(req, res);
-                return;
-            }
-
-            // Handle different actions
             try {
-                switch (path) {
-                    case "/view":
-                        List<Item> items = itemService.getAllItems();
-                        req.setAttribute("items", items);
-                        req.setAttribute("view", "items");
-                        break;
-                    case "/search":
-                        String code = req.getParameter("code");
-                        if (code == null || code.isEmpty()) {
-                            req.setAttribute("showSearchForm", true);
-                        } else {
-                            Item item = itemService.getItemByCode(code);
-                            req.setAttribute("item", item);
-                            req.setAttribute("view", "item");
-                        }
-                        break;
-                    default:
-                        req.setAttribute("error", "Unknown action");
+                if (path == null || path.equals("/") || path.equals("/view")) {
+                    List<Item> items = itemService.getAllItems();
+                    req.setAttribute("items", items);
+                    req.setAttribute("view", "items");
+                } else if (path.equals("/search")) {
+                    String code = req.getParameter("code");
+                    if (code == null || code.isEmpty()) {
+                        req.setAttribute("showSearchForm", true);
+                    } else {
+                        Item item = itemService.getItemByCode(code);
+                        req.setAttribute("item", item);
+                        req.setAttribute("view", "item");
+                    }
+                } else {
+                    req.setAttribute("error", "Unknown action: " + path);
                 }
             } catch (Exception e) {
                 req.setAttribute("error", "Error: " + e.getMessage());
@@ -97,104 +89,135 @@ public class ItemServlet extends HttpServlet {
     }
 
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
         AsyncContext asyncContext = request.startAsync();
         RequestHandler handler = (req, res) -> {
             HttpSession session = req.getSession();
             User user = (User) session.getAttribute("user");
             if (user == null) {
-                res.sendRedirect("/index.jsp?error=Please login first");
+                res.sendRedirect(req.getContextPath() + "/index.jsp?error=Please login first");
                 return;
             }
 
             String action = req.getParameter("action");
-
             try {
                 switch (action) {
                     case "add":
-                        String name = req.getParameter("name");
-                        String priceStr = req.getParameter("price");
-                        String shelfDefaultStr = req.getParameter("shelfDefault");
-                        String quantityStr = req.getParameter("quantity");
-                        String expiry = req.getParameter("expiry");
-                        if (name == null || priceStr == null || shelfDefaultStr == null || quantityStr == null || expiry == null) {
-                            req.setAttribute("showAddForm", true);
-                        } else {
-                            double price = Double.parseDouble(priceStr);
-                            int shelfDefault = Integer.parseInt(shelfDefaultStr);
-                            int quantity = Integer.parseInt(quantityStr);
-                            LocalDate currentDate = LocalDate.now();
-                            String entryDate = currentDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-
-                            Item newItem = new Item(name, price);
-                            itemService.addItem(newItem, shelfDefault, 0);
-                            stockFacade.stockItem(newItem.getCode(), quantity, entryDate, expiry);
-
-                            Shelf newShelf = new Shelf(newItem.getCode(), shelfDefault, shelfDefault);
-                            stockFacade.getShelfService().addShelf(newShelf);
-
-                            newShelf.setShelfCurrent(newShelf.getShelfDefault());
-                            int reducedStockBatchQuantity = quantity - newShelf.getShelfDefault();
-
-                            if (reducedStockBatchQuantity > 0) {
-                                stockFacade.updateStockEntry(newItem.getCode(), reducedStockBatchQuantity, expiry);
-                            }
-
-                            stockFacade.getShelfService().updateShelf(newShelf);
-                            req.setAttribute("message", "Item added with code: " + newItem.getCode());
-                        }
+                        handleAdd(req);
                         break;
                     case "update":
-                        String code = req.getParameter("code");
-                        name = req.getParameter("name");
-                        priceStr = req.getParameter("price");
-                        if (code == null || name == null || priceStr == null) {
-                            req.setAttribute("showUpdateForm", true);
-                        } else {
-                            double price = Double.parseDouble(priceStr);
-                            itemService.updateItem(new Item(code, name, price));
-                            req.setAttribute("message", "Item updated.");
-                        }
+                        handleUpdate(req);
                         break;
                     case "updateName":
-                        code = req.getParameter("code");
-                        name = req.getParameter("name");
-                        if (code == null || name == null) {
-                            req.setAttribute("showUpdateNameForm", true);
-                        } else {
-                            itemService.updateItemName(code, name);
-                            req.setAttribute("message", "Item name updated.");
-                        }
+                        handleUpdateName(req);
                         break;
                     case "updatePrice":
-                        code = req.getParameter("code");
-                        priceStr = req.getParameter("price");
-                        if (code == null || priceStr == null) {
-                            req.setAttribute("showUpdatePriceForm", true);
-                        } else {
-                            double price = Double.parseDouble(priceStr);
-                            itemService.updateItemPrice(code, price);
-                            req.setAttribute("message", "Item price updated.");
-                        }
+                        handleUpdatePrice(req);
                         break;
                     case "delete":
-                        code = req.getParameter("code");
-                        if (code == null) {
-                            req.setAttribute("showDeleteForm", true);
-                        } else {
-                            itemService.deleteItem(code);
-                            req.setAttribute("message", "Item deleted.");
-                        }
+                        handleDelete(req);
                         break;
                     default:
-                        req.setAttribute("error", "Unknown action");
+                        req.setAttribute("error", "Unknown action: " + action);
                 }
             } catch (Exception e) {
                 req.setAttribute("error", "Error: " + e.getMessage());
             }
 
+            // ✅ Always refresh items list
+            try {
+                List<Item> items = itemService.getAllItems();
+                req.setAttribute("items", items);
+                req.setAttribute("view", "items");
+            } catch (Exception e) {
+                req.setAttribute("error", "Error refreshing items: " + e.getMessage());
+            }
+
             req.getRequestDispatcher("/item.jsp").forward(req, res);
         };
         AsyncRequestProcessor.getInstance().submitTask(new RequestTask(asyncContext, handler));
+    }
+
+    private void handleAdd(HttpServletRequest req) throws Exception {
+        String name = req.getParameter("name");
+        String priceStr = req.getParameter("price");
+        String shelfDefaultStr = req.getParameter("shelfDefault");
+        String quantityStr = req.getParameter("quantity");
+        String expiry = req.getParameter("expiry");
+
+        if (name == null || priceStr == null || shelfDefaultStr == null || quantityStr == null || expiry == null) {
+            req.setAttribute("error", "Missing required fields");
+            return;
+        }
+
+        double price = Double.parseDouble(priceStr);
+        int shelfDefault = Integer.parseInt(shelfDefaultStr);
+        int quantity = Integer.parseInt(quantityStr);
+
+        LocalDate currentDate = LocalDate.now();
+        String entryDate = currentDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+        Item newItem = new Item(name, price);
+        itemService.addItem(newItem, shelfDefault, 0);
+        stockFacade.stockItem(newItem.getCode(), quantity, entryDate, expiry);
+
+        Shelf newShelf = new Shelf(newItem.getCode(), shelfDefault, shelfDefault);
+        stockFacade.getShelfService().addShelf(newShelf);
+
+        newShelf.setShelfCurrent(newShelf.getShelfDefault());
+        int reducedStockBatchQuantity = quantity - newShelf.getShelfDefault();
+        if (reducedStockBatchQuantity > 0) {
+            stockFacade.updateStockEntry(newItem.getCode(), reducedStockBatchQuantity, expiry);
+        }
+
+        stockFacade.getShelfService().updateShelf(newShelf);
+        req.setAttribute("message", "Item added with code: " + newItem.getCode());
+    }
+
+    private void handleUpdate(HttpServletRequest req) throws Exception {
+        String code = req.getParameter("code");
+        String name = req.getParameter("name");
+        String priceStr = req.getParameter("price");
+        if (code == null || name == null || priceStr == null) {
+            req.setAttribute("error", "Missing update fields");
+            return;
+        }
+        double price = Double.parseDouble(priceStr);
+        itemService.updateItem(new Item(code, name, price));
+        req.setAttribute("message", "Item updated.");
+    }
+
+    private void handleUpdateName(HttpServletRequest req) throws Exception {
+        String code = req.getParameter("code");
+        String name = req.getParameter("name");
+        if (code == null || name == null) {
+            req.setAttribute("error", "Missing fields for name update");
+            return;
+        }
+        itemService.updateItemName(code, name);
+        req.setAttribute("message", "Item name updated.");
+    }
+
+    private void handleUpdatePrice(HttpServletRequest req) throws Exception {
+        String code = req.getParameter("code");
+        String priceStr = req.getParameter("price");
+        if (code == null || priceStr == null) {
+            req.setAttribute("error", "Missing fields for price update");
+            return;
+        }
+        double price = Double.parseDouble(priceStr);
+        itemService.updateItemPrice(code, price);
+        req.setAttribute("message", "Item price updated.");
+    }
+
+    private void handleDelete(HttpServletRequest req) throws Exception {
+        String code = req.getParameter("code");
+        if (code == null) {
+            req.setAttribute("error", "Missing code for delete");
+            return;
+        }
+        itemService.deleteItem(code);
+        req.setAttribute("message", "Item deleted.");
     }
 }

@@ -4,6 +4,7 @@ import core.dao.ShelfDAO;
 import core.models.Shelf;
 
 import java.sql.SQLException;
+import java.util.List;
 
 public class ShelfService {
     private final ShelfDAO shelfDAO;
@@ -32,4 +33,10 @@ public class ShelfService {
     public void deleteShelf(String productCode) throws SQLException {
         shelfDAO.deleteShelf(productCode);
     }
+
+    // In ShelfService.java
+    public List<Shelf> getAllShelves() throws SQLException {
+        return shelfDAO.getAllShelves();
+    }
+
 }

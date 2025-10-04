@@ -25,6 +25,16 @@ public abstract class Bill {
         this.items = items;
     }
 
+    // ✅ Add this
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    // ✅ Add this
+    public void setBillDate(Date billDate) {
+        this.billDate = billDate;
+    }
+
     public int getId() {
         return id;
     }
@@ -62,7 +72,7 @@ public abstract class Bill {
     }
 
     /**
-     * ✅ New method to support bulk discount logic
+     * New method to support bulk discount logic
      */
     public int getTotalQuantity() {
         return items.stream().mapToInt(BillItem::getQuantity).sum();
