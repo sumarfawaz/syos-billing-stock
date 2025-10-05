@@ -10,6 +10,10 @@
         response.sendRedirect("index.jsp?error=Unauthorized");
         return;
     }
+
+    // ✅ Capture success and error messages
+    String successMsg = request.getParameter("success");
+    String errorMsg = request.getParameter("error");
 %>
 <html>
 <head>
@@ -45,25 +49,6 @@
             margin-top: 2rem;
             font-weight: 600;
         }
-        ul {
-            list-style: none;
-            padding: 0;
-        }
-        ul li a {
-            display: inline-block;
-            background-color: #66bb6a;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            text-decoration: none;
-            margin-bottom: 10px;
-            transition: all 0.3s ease;
-        }
-        ul li a:hover {
-            background-color: #2e7d32;
-            transform: scale(1.05);
-        }
         table {
             width: 100%;
             margin-top: 1rem;
@@ -96,6 +81,37 @@
         .logout a:hover {
             text-decoration: underline;
         }
+        .btn-order {
+            background-color: #43a047;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-order:hover {
+            background-color: #2e7d32;
+            transform: scale(1.05);
+        }
+        .alert {
+            text-align: center;
+            font-weight: 600;
+        }
+        .back-btn {
+            text-align: center;
+            margin-top: 15px;
+        }
+        .back-btn a {
+            color: white;
+            background-color: #2e7d32;
+            padding: 8px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+        }
+        .back-btn a:hover {
+            background-color: #1b5e20;
+        }
     </style>
 </head>
 
@@ -104,38 +120,78 @@
     <h1>Welcome, <%= user.getUsername() %></h1>
     <p class="role-text">Role: <strong><%= user.getRole() %></strong></p>
 
+    <!-- ✅ Success / Error message display -->
+    <% if (successMsg != null) { %>
+        <div class="alert alert-success" role="alert">
+            <%= successMsg %>
+        </div>
+        <div class="back-btn">
+            <a href="http://localhost:9090/SYOS/customer/dashboard">⬅ Back to Dashboard</a>
+        </div>
+    <% } else if (errorMsg != null) { %>
+        <div class="alert alert-danger" role="alert">
+            <%= errorMsg %>
+        </div>
+        <div class="back-btn">
+            <a href="http://localhost:9090/SYOS/customer/dashboard">⬅ Back to Dashboard</a>
+        </div>
+    <% } %>
+
     <h3>Available Products</h3>
-    <div class="table-responsive">
-        <table class="table table-bordered align-middle">
-            <thead class="table-success">
-                <tr>
-                    <th>Product</th>
-                    <th>Price (Rs.)</th>
-                    <th>Available Qty</th>
-                </tr>
-            </thead>
-            <tbody>
-                <%
-                    List<Map<String, Object>> products = (List<Map<String, Object>>) request.getAttribute("products");
-                    if (products != null && !products.isEmpty()) {
-                        for (Map<String, Object> p : products) {
-                %>
-                <tr>
-                    <td><%= p.get("itemName") %> (<%= p.get("productCode") %>)</td>
-                    <td>Rs. <%= p.get("itemPrice") %></td>
-                    <td><%= p.get("currentQty") %></td>
-                </tr>
-                <%
-                        }
-                    } else {
-                %>
-                <tr>
-                    <td colspan="3" class="text-muted py-3">No products available</td>
-                </tr>
-                <% } %>
-            </tbody>
-        </table>
-    </div>
+
+    <!-- ✅ Purchase Form -->
+    <form action="<%= request.getContextPath() %>/placeOrder" method="post">
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle">
+                <thead class="table-success">
+                    <tr>
+                        <th>Select</th>
+                        <th>Product</th>
+                        <th>Price (Rs.)</th>
+                        <th>Available Qty</th>
+                        <th>Buy Qty</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <%
+                        List<Map<String, Object>> products = (List<Map<String, Object>>) request.getAttribute("products");
+                        if (products != null && !products.isEmpty()) {
+                            for (Map<String, Object> p : products) {
+                                String code = p.get("productCode").toString();
+                    %>
+                    <tr>
+                        <td>
+                            <input type="checkbox" name="itemCode" value="<%= code %>">
+                        </td>
+                        <td><%= p.get("itemName") %> (<%= code %>)</td>
+                        <td>
+                            <%= p.get("itemPrice") %>
+                            <input type="hidden" name="price" value="<%= p.get("itemPrice") %>">
+                        </td>
+                        <td><%= p.get("currentQty") %></td>
+                        <td>
+                            <input type="number" name="quantity" value="1" min="1" max="<%= p.get("currentQty") %>"
+                                   class="form-control form-control-sm" style="width:80px; margin:auto;">
+                        </td>
+                    </tr>
+                    <%
+                            }
+                        } else {
+                    %>
+                    <tr>
+                        <td colspan="5" class="text-muted py-3">No products available</td>
+                    </tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+
+        <% if (products != null && !products.isEmpty()) { %>
+        <div class="text-center mt-3">
+            <button type="submit" class="btn-order">Place Order</button>
+        </div>
+        <% } %>
+    </form>
 
     <div class="logout">
         <a href="<%= request.getContextPath() %>/logout">Logout</a>
