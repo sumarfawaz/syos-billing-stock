@@ -60,7 +60,9 @@
             <groupId>javax.websocket</groupId>
             <artifactId>javax.websocket-api</artifactId>
             <version>1.1</version>
+            <scope>provided</scope>
         </dependency>
+
     </dependencies>
 
 
@@ -113,10 +115,11 @@
                 <artifactId>tomcat7-maven-plugin</artifactId>
                 <version>2.2</version>
                 <configuration>
-                    <path>/</path> <!-- base URL path -->
-                    <port>9090</port>        <!-- change if you want another port -->
+                    <path>/SYOS</path>
+                    <port>9090</port>
                 </configuration>
             </plugin>
+
 
 
         </plugins>

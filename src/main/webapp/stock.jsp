@@ -12,6 +12,13 @@
     <title>SYOS - Stock Management</title>
     <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        tr.updated {
+            background-color: #c8f7c5 !important;
+            transition: background-color 1.5s ease;
+        }
+    </style>
 </head>
 <body class="bg-light">
 
@@ -43,10 +50,10 @@
         </div>
     </div>
 
-    <!--  All Stock Entries Table -->
+    <!-- All Stock Entries Table -->
     <div class="card shadow-sm p-4">
         <h4 class="mb-3">All Stock Entries</h4>
-        <table class="table table-bordered table-hover mt-3">
+        <table id="stockTable" class="table table-bordered table-hover mt-3">
             <thead class="table-dark">
                 <tr>
                     <th>Stock Entry ID</th>
@@ -62,10 +69,10 @@
                 if (entries != null && !entries.isEmpty()) {
                     for (StockEntry entry : entries) {
             %>
-                <tr>
+                <tr id="row-<%= entry.getItemCode() %>">
                     <td><%= entry.getId() %></td>
                     <td><%= entry.getItemCode() %></td>
-                    <td><%= entry.getQuantity() %></td>
+                    <td class="qty"><%= entry.getQuantity() %></td>
                     <td><%= entry.getEntryDate() %></td>
                     <td><%= entry.getExpiryDate() %></td>
                 </tr>
@@ -82,7 +89,7 @@
     </div>
 </div>
 
-<!--  Add Stock Modal -->
+<!-- Add Stock Modal -->
 <div class="modal fade" id="addStockModal" tabindex="-1">
   <div class="modal-dialog">
     <form action="stock" method="post" class="modal-content">
@@ -147,7 +154,7 @@
   </div>
 </div>
 
-<!--  Update Stock Modal -->
+<!-- Update Stock Modal -->
 <div class="modal fade" id="updateStockModal" tabindex="-1">
   <div class="modal-dialog">
     <form action="stock" method="post" class="modal-content">
@@ -171,7 +178,7 @@
   </div>
 </div>
 
-<!--  Delete Stock Modal -->
+<!-- Delete Stock Modal -->
 <div class="modal fade" id="deleteStockModal" tabindex="-1">
   <div class="modal-dialog">
     <form action="stock" method="post" class="modal-content">
@@ -191,7 +198,70 @@
   </div>
 </div>
 
-<!--  Bootstrap JS -->
+<!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!--  WebSocket Live Update Script -->
+<script>
+    // Direct WebSocket URL — adjust only if your port or context changes
+    const wsUrl = "ws://localhost:9090/SYOS/inventory-updates";
+    console.log("🔌 Connecting to WebSocket:", wsUrl);
+
+    let socket;
+    try {
+        socket = new WebSocket(wsUrl);
+    } catch (e) {
+        console.error("❌ Failed to create WebSocket:", e);
+    }
+
+    if (socket) {
+        socket.onopen = () => console.log("✅ Connected to WebSocket:", wsUrl);
+
+        socket.onmessage = (event) => {
+            console.log("📩 Received message:", event.data);
+            try {
+                const update = JSON.parse(event.data);
+                const itemCode = update.itemCode;
+                const newQty = update.newQuantity;
+
+                const row = document.getElementById("row-" + itemCode);
+                if (row) {
+                    const qtyCell = row.querySelector(".qty");
+                    if (qtyCell) qtyCell.textContent = newQty;
+                    row.classList.add("updated");
+                    setTimeout(() => row.classList.remove("updated"), 1500);
+                } else {
+                    const tbody = document.querySelector("#stockTable tbody");
+                    const newRow = document.createElement("tr");
+                    newRow.id = "row-" + itemCode;
+                    newRow.innerHTML = `
+                        <td>New</td>
+                        <td>${itemCode}</td>
+                        <td class="qty">${newQty}</td>
+                        <td>--</td>
+                        <td>--</td>
+                    `;
+                    tbody.appendChild(newRow);
+                    newRow.classList.add("updated");
+                    setTimeout(() => newRow.classList.remove("updated"), 1500);
+                }
+            } catch (err) {
+                console.error("⚠️ Failed to parse WebSocket data:", err);
+            }
+        };
+
+        socket.onerror = (err) => console.error("❌ WebSocket error:", err);
+        socket.onclose = () => console.warn("⚠️ WebSocket disconnected.");
+    }
+</script>
+
+
+
+
+
+
+
+
+
 </body>
 </html>

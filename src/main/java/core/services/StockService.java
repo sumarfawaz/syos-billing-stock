@@ -9,6 +9,7 @@ import core.strategy.stock.StockAllocator;
 import core.strategy.stock.ExpiryAwareStockSelectionStrategy;
 import core.observer.StockObserver;
 import core.observer.StockSubject;
+import web.websockets.InventorySocket; // ✅ Direct WebSocket broadcaster import
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -27,7 +28,7 @@ public class StockService implements StockSubject {
     private final List<StockObserver> observers = new ArrayList<>();
     private final Map<String, Integer> stockLevels = new HashMap<>();
 
-    // ✅ Per-item lock map
+    // ✅ Per-item lock map for fine-grained concurrency
     private static final ConcurrentHashMap<String, ReentrantLock> STOCK_LOCKS = new ConcurrentHashMap<>();
 
     public StockService(Connection conn, ItemService itemService, ShelfService shelfService) {
@@ -36,12 +37,12 @@ public class StockService implements StockSubject {
         this.shelfService = shelfService;
     }
 
-    // ✅ Expose ShelfService (unchanged)
+    // ✅ Expose ShelfService if needed elsewhere
     public ShelfService getShelfService() {
         return shelfService;
     }
 
-    // ==================== OBSERVER METHODS (unchanged) ====================
+    // ==================== OBSERVER PATTERN ====================
 
     @Override
     public void registerObserver(StockObserver observer) {
@@ -53,14 +54,30 @@ public class StockService implements StockSubject {
         observers.remove(observer);
     }
 
+    /**
+     * Notify both internal observers and WebSocket clients
+     */
     @Override
     public void notifyObservers(String itemCode, int newQuantity) {
+        // Notify local Java observers (e.g., low-stock monitor)
         for (StockObserver observer : observers) {
             observer.update(itemCode, newQuantity);
         }
+
+        // ✅ Real-time WebSocket broadcast to all connected browser clients
+        try {
+            String message = String.format(
+                    "{\"itemCode\":\"%s\",\"newQuantity\":%d,\"timestamp\":\"%s\"}",
+                    itemCode, newQuantity, new Date()
+            );
+            InventorySocket.broadcast(message); // ✅ uses your working WebSocket endpoint
+            System.out.println("🔔 WebSocket broadcast sent: " + message);
+        } catch (Exception e) {
+            System.err.println("⚠️ Failed to broadcast WebSocket update: " + e.getMessage());
+        }
     }
 
-    // ==================== READ METHODS (no locking) ====================
+    // ==================== READ METHODS (NO LOCK) ====================
 
     public List<StockEntry> getAllStockEntries() throws SQLException {
         return stockEntryRepository.findAll();
@@ -83,12 +100,11 @@ public class StockService implements StockSubject {
         }
     }
 
-    // ==================== WRITE METHODS (per-item locking) ====================
+    // ==================== WRITE METHODS (LOCKED PER ITEM) ====================
 
     public void addStockEntry(String itemCode, int quantity, String entryDateStr, String expiryDateStr)
             throws SQLException, ParseException {
 
-        // Acquire lock per item
         ReentrantLock lock = STOCK_LOCKS.computeIfAbsent(itemCode, k -> new ReentrantLock());
         lock.lock();
 
@@ -104,7 +120,6 @@ public class StockService implements StockSubject {
             StockEntry entry = new StockEntry(itemCode, quantity, entryDate, expiryDate);
             stockEntryRepository.insert(entry);
 
-            // Update and notify
             int newQuantity = getTotalStockForItem(itemCode);
             notifyObservers(itemCode, newQuantity);
 
@@ -164,12 +179,11 @@ public class StockService implements StockSubject {
             System.out.println("✅ Stock entry deleted safely for item: " + entry.getItemCode());
         } finally {
             lock.unlock();
-            // Optional cleanup
             STOCK_LOCKS.remove(entry.getItemCode(), lock);
         }
     }
 
-    // ==================== UTILITY ====================
+    // ==================== UTILITIES ====================
 
     private Date parseDate(String input) throws ParseException {
         return new SimpleDateFormat("yyyy-MM-dd").parse(input);

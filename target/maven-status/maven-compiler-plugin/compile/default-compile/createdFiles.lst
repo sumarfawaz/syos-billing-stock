@@ -25,7 +25,6 @@ core\discount\BaseDiscountHandler.class
 web\servlets\ItemServlet.class
 cli\ApplicationCLI.class
 core\models\Customer.class
-web\servlets\StockServlet.class
 core\models\Admin.class
 core\utils\DateUtil.class
 core\dao\UserDAO.class
@@ -37,8 +36,6 @@ core\dao\BillDAO.class
 core\models\Shelf.class
 core\models\Bill.class
 core\repositories\StockEntryRepository.class
-core\report\StockReport.class
-core\services\BillingService.class
 core\utils\DatabaseConnectionManager.class
 core\observer\StockObserver.class
 core\services\AuthenticationService.class
