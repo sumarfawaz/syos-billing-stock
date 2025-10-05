@@ -14,29 +14,37 @@ public class ShelfService {
         this.shelfDAO = shelfDAO;
     }
 
-    // Add a new shelf entry for the item
+    //  Write operation — synchronized for thread safety
     public void addShelf(Shelf shelf) throws SQLException {
-        shelfDAO.addShelf(shelf);
+        synchronized (ShelfService.class) {
+            shelfDAO.addShelf(shelf);
+            System.out.println("✅ Shelf added safely for item: " + shelf.getProductCode());
+        }
     }
 
-    // Retrieve a shelf by its product code
+    //  Read operation — no lock (safe and fast)
     public Shelf getShelfByProductCode(String productCode) throws SQLException {
         return shelfDAO.getShelfByProductCode(productCode);
     }
 
-    // Update an existing shelf entry
+    //  Write operation — synchronized
     public void updateShelf(Shelf shelf) throws SQLException {
-        shelfDAO.updateShelf(shelf);
+        synchronized (ShelfService.class) {
+            shelfDAO.updateShelf(shelf);
+            System.out.println("✅ Shelf updated safely for item: " + shelf.getProductCode());
+        }
     }
 
-    // Delete shelf entry by product code
+    //  Write operation — synchronized
     public void deleteShelf(String productCode) throws SQLException {
-        shelfDAO.deleteShelf(productCode);
+        synchronized (ShelfService.class) {
+            shelfDAO.deleteShelf(productCode);
+            System.out.println("✅ Shelf deleted safely for product: " + productCode);
+        }
     }
 
-    // In ShelfService.java
+    //  Read operation 
     public List<Shelf> getAllShelves() throws SQLException {
         return shelfDAO.getAllShelves();
     }
-
 }
